@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Add User</title>
+  <!-- Bulma CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+  />
+  <!-- Font Awesome for icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+  <style>
+    #video, #canvas {
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      transition: box-shadow 0.3s ease;
+    }
+    #video:hover {
+      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    }
+    .button.is-info {
+      transition: background-color 0.3s ease;
+    }
+    .button.is-info:hover {
+      background-color: #209ceecc;
+    }
+    .button.is-primary {
+      transition: background-color 0.3s ease;
+    }
+    .button.is-primary:hover {
+      background-color: #004a9f;
+    }
+    .help.is-danger {
+      font-weight: 600;
+    }
+    /* Center vertically */
+    html, body {
+      height: 100%;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(
+        135deg,
+        #ffddb3 0%,
+        #f7c56a 40%,
+        #f9b72f 70%,
+        #fff8e1 100%
+      );
+      min-height: 100vh;
+      padding: 2rem;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(
+        circle,
+        rgba(255, 223, 100, 0.4) 0%,
+        rgba(255, 223, 100, 0) 70%
+      );
+      transform: translate(-50%, -50%);
+      filter: blur(150px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 14px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+      background: white;
+      padding: 2rem 2.5rem;
+    }
+    .title {
+      color: #4a4a4a;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 class="title is-3">Add New User</h2>
+    <form id="userForm" novalidate>
+      <div class="field">
+        <label class="label" for="roll">Roll Number</label>
+        <div class="control has-icons-left">
+          <input
+            class="input"
+            type="text"
+            id="roll"
+            placeholder="Enter Roll Number"
+            required
+            autocomplete="off"
+          />
+          <span class="icon is-small is-left">
+            <i class="fas fa-id-badge"></i>
+          </span>
+        </div>
+        <p class="help is-danger" style="display:none;">Roll Number is required</p>
+      </div>
+
+      <div class="field">
+        <label class="label" for="name">Full Name</label>
+        <div class="control has-icons-left">
+          <input
+            class="input"
+            type="text"
+            id="name"
+            placeholder="Enter Full Name"
+            required
+            autocomplete="off"
+          />
+          <span class="icon is-small is-left">
+            <i class="fas fa-user"></i>
+          </span>
+        </div>
+        <p class="help is-danger" style="display:none;">Full Name is required</p>
+      </div>
+
+      <div class="field has-text-centered">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+      </div>
+
+      <div class="field is-grouped is-grouped-centered" style="margin-bottom: 0.5rem;">
+        <div class="control">
+          <button type="button" id="captureBtn" class="button is-info is-medium">
+            <span class="icon"><i class="fas fa-camera"></i></span>
+            <span>Capture Image</span>
+          </button>
+        </div>
+        <div class="control">
+          <button type="submit" id="submitBtn" class="button is-primary is-medium">
+            <span class="icon"><i class="fas fa-user-plus"></i></span>
+            <span>Add User</span>
+          </button>
+        </div>
+      </div>
+
+      <p class="help is-danger has-text-centered" id="imageHelp" style="display:none;">
+        Please capture an image before submitting.
+      </p>
+
+      <!-- Message container for success or error -->
+      <p id="formMessage" class="help" style="display:none; margin-top: 1rem; text-align: center;"></p>
+    </form>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const captureBtn = document.getElementById("captureBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    const form = document.getElementById("userForm");
+
+    const rollInput = document.getElementById("roll");
+    const nameInput = document.getElementById("name");
+
+    const rollHelp = rollInput.parentElement.nextElementSibling;
+    const nameHelp = nameInput.parentElement.nextElementSibling;
+    const imageHelp = document.getElementById("imageHelp");
+    const formMessage = document.getElementById("formMessage");
+
+    let imageBlob = null;
+    let stream = null;
+    let isCaptured = false;
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.style.display = "block";
+        canvas.style.display = "none";
+        captureBtn.innerHTML = '<span class="icon"><i class="fas fa-camera"></i></span><span>Capture Image</span>';
+        isCaptured = false;
+        imageHelp.style.display = "none";
+        formMessage.style.display = "none";
+      } catch (err) {
+        alert("Could not access camera. Please allow camera permissions and refresh.");
+      }
+    }
+
+    function stopCamera() {
+      stream?.getTracks().forEach((t) => t.stop());
+    }
+
+    captureBtn.addEventListener("click", () => {
+      if (!isCaptured) {
+        const ctx = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => (imageBlob = blob), "image/png");
+        stopCamera();
+        video.style.display = "none";
+        canvas.style.display = "block";
+        captureBtn.innerHTML = '<span class="icon"><i class="fas fa-redo"></i></span><span>Recapture</span>';
+        isCaptured = true;
+        imageHelp.style.display = "none";
+      } else {
+        startCamera();
+      }
+    });
+
+    function validateField(input, help) {
+      if (!input.value.trim()) {
+        input.classList.add("is-danger");
+        help.style.display = "block";
+        return false;
+      } else {
+        input.classList.remove("is-danger");
+        help.style.display = "none";
+        return true;
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const isRollValid = validateField(rollInput, rollHelp);
+      const isNameValid = validateField(nameInput, nameHelp);
+
+      if (!isRollValid || !isNameValid) return;
+
+      if (!imageBlob) {
+        imageHelp.style.display = "block";
+        return;
+      }
+
+      imageHelp.style.display = "none";
+      formMessage.style.display = "none";
+
+      const formData = new FormData();
+      formData.append("roll", rollInput.value.trim());
+      formData.append("name", nameInput.value.trim());
+      formData.append("photo", imageBlob, "face.png");
+
+      try {
+        const res = await fetch("/admin/add_user", { method: "POST", body: formData });
+        const data = await res.json();
+
+        if (data.message) {
+          formMessage.textContent = data.message;
+          formMessage.className = "help is-success";
+          formMessage.style.display = "block";
+
+          // Reset form and camera for next entry
+          setTimeout(()=>{
+          rollInput.value = "";
+          nameInput.value = "";
+          imageBlob = null;
+          startCamera();
+          },2000);
+        } else if (data.error) {
+          formMessage.textContent = data.error;
+          formMessage.className = "help is-danger";
+          formMessage.style.display = "block";
+        }
+      } catch (err) {
+        formMessage.textContent = "Error submitting form. Please try again.";
+        formMessage.className = "help is-danger";
+        formMessage.style.display = "block";
+      }
+    });
+
+    startCamera();
+  </script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Attendance Portal</title>
+  <!-- Bulma CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+  />
+  <!-- Font Awesome for icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+  <style>
+  .field.is-grouped.is-grouped-centered {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.button {
+  min-width: 140px;
+}
+
+    /* Warm yellow ambient background ~1900K */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(
+        135deg,
+        #ffddb3 0%,
+        #f7c56a 40%,
+        #f9b72f 70%,
+        #fff8e1 100%
+      );
+      min-height: 100vh;
+      padding: 2rem;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(
+        circle,
+        rgba(255, 223, 100, 0.4) 0%,
+        rgba(255, 223, 100, 0) 70%
+      );
+      transform: translate(-50%, -50%);
+      filter: blur(150px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Card container */
+    .card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 14px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+      background: white;
+      padding: 2rem 2.5rem;
+    }
+
+    /* Title style */
+    .title {
+      color: #4a4a4a;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    /* Video & canvas styling */
+    #video, #canvas {
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+      transition: box-shadow 0.3s ease;
+    }
+    #video:hover {
+      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    }
+
+    /* Buttons hover effects */
+    .button.is-info {
+      transition: background-color 0.3s ease;
+    }
+    .button.is-info:hover {
+      background-color: #209ceecc;
+    }
+    .button.is-primary {
+      transition: background-color 0.3s ease;
+    }
+    .button.is-primary:hover {
+      background-color: #004a9f;
+    }
+
+    /* Validation help text */
+    .help.is-danger {
+      font-weight: 600;
+    }
+
+    /* Result message styling */
+    #result {
+      margin-top: 1rem;
+      font-weight: 600;
+      text-align: center;
+      color: #363636;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 class="title is-3">Mark Attendance</h2>
+    <form id="attendanceForm" novalidate>
+      <div class="field">
+        <label class="label" for="roll">Roll Number</label>
+        <div class="control has-icons-left">
+          <input
+            class="input"
+            type="text"
+            id="roll"
+            placeholder="Enter Roll Number"
+            required
+            autocomplete="off"
+          />
+          <span class="icon is-small is-left">
+            <i class="fas fa-id-badge"></i>
+          </span>
+        </div>
+        <p class="help is-danger" style="display:none;">Roll Number is required</p>
+      </div>
+
+      <div class="field">
+        <label class="label" for="name">Full Name</label>
+        <div class="control has-icons-left">
+          <input
+            class="input"
+            type="text"
+            id="name"
+            placeholder="Enter Full Name"
+            required
+            autocomplete="off"
+          />
+          <span class="icon is-small is-left">
+            <i class="fas fa-user"></i>
+          </span>
+        </div>
+        <p class="help is-danger" style="display:none;">Full Name is required</p>
+      </div>
+
+      <div class="field has-text-centered">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+      </div>
+<div class="field is-grouped is-grouped-centered" style="margin-bottom: 1rem;">
+  <div class="control">
+    <button type="button" id="captureBtn" class="button is-info is-medium">
+      <span class="icon"><i class="fas fa-camera"></i></span>
+      <span>Capture Image</span>
+    </button>
+  </div>
+  <div class="control">
+    <button type="button" id="submitBtn" class="button is-primary is-medium">
+      <span class="icon"><i class="fas fa-check-circle"></i></span>
+      <span>Submit Attendance</span>
+    </button>
+  </div>
+</div>
+
+
+      <p id="imageHelp" class="help is-danger has-text-centered" style="display:none;">
+        Please capture an image before submitting.
+      </p>
+    </form>
+
+    <p id="result"></p>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const captureBtn = document.getElementById("captureBtn");
+    const submitBtn = document.getElementById("submitBtn");
+
+    const rollInput = document.getElementById("roll");
+    const nameInput = document.getElementById("name");
+
+    const rollHelp = rollInput.parentElement.nextElementSibling;
+    const nameHelp = nameInput.parentElement.nextElementSibling;
+    const imageHelp = document.getElementById("imageHelp");
+    const result = document.getElementById("result");
+
+    let imageBlob = null;
+    let stream = null;
+    let isCaptured = false;
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.style.display = "block";
+        canvas.style.display = "none";
+        captureBtn.innerHTML = '<span class="icon"><i class="fas fa-camera"></i></span><span>Capture Image</span>';
+        isCaptured = false;
+        imageHelp.style.display = "none";
+        result.textContent = "";
+      } catch (err) {
+        alert("Could not access camera. Please allow camera permissions and refresh.");
+      }
+    }
+
+    function stopCamera() {
+      stream?.getTracks().forEach((t) => t.stop());
+    }
+
+    captureBtn.addEventListener("click", () => {
+      if (!isCaptured) {
+        const ctx = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => (imageBlob = blob), "image/png");
+        stopCamera();
+        video.style.display = "none";
+        canvas.style.display = "block";
+        captureBtn.innerHTML = '<span class="icon"><i class="fas fa-redo"></i></span><span>Recapture</span>';
+        isCaptured = true;
+        imageHelp.style.display = "none";
+      } else {
+        startCamera();
+      }
+    });
+
+    function validateField(input, help) {
+      if (!input.value.trim()) {
+        input.classList.add("is-danger");
+        help.style.display = "block";
+        return false;
+      } else {
+        input.classList.remove("is-danger");
+        help.style.display = "none";
+        return true;
+      }
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      const isRollValid = validateField(rollInput, rollHelp);
+      const isNameValid = validateField(nameInput, nameHelp);
+
+      if (!isRollValid || !isNameValid) return;
+
+      if (!imageBlob) {
+        imageHelp.style.display = "block";
+        return;
+      }
+
+      imageHelp.style.display = "none";
+
+      const formData = new FormData();
+      formData.append("roll", rollInput.value.trim());
+      formData.append("name", nameInput.value.trim());
+      formData.append("photo", imageBlob, "capture.png");
+
+     try {
+  const res = await fetch("/attendance/submit", { method: "POST", body: formData });
+  const data = await res.json();
+  if (res.ok) {
+    result.style.color = "#23d160"; // green
+
+    if (data.message) {
+      result.textContent = data.message;  // e.g. Already marked present...
+    } else {
+      result.textContent = `Attendance marked as ${data.status} at ${data.timestamp}`;
+    }
+
+    // Wait 4 seconds before resetting form and restarting camera
+    setTimeout(() => {
+      rollInput.value = "";
+      nameInput.value = "";
+      imageBlob = null;
+      startCamera();
+      result.textContent = ""; // clear message after reset if you want
+    }, 4000);
+  } else {
+    result.style.color = "#ff3860"; // red
+    result.textContent = `Error: ${data.error}`;
+  }
+} catch (err) {
+  result.style.color = "#ff3860";
+  result.textContent = "Error submitting attendance. Please try again.";
+}
+
+    });
+
+    startCamera();
+  </script>
+</body>
+</html>
