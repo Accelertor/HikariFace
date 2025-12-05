@@ -2,3 +2,4 @@ numpy
 insightface
 opencv-python
 flask
+onnxruntime
